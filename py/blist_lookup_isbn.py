@@ -10,6 +10,7 @@ import pprint
 import codecs
 import csv
 import re
+import xmltodict
 
 debug_level = 0
 
@@ -21,6 +22,49 @@ debug_level = 0
 def debug_print(l, msg):
     if debug_level >= l:
         print('DEBUG%u %s' % (l, msg))
+
+
+#=============================================================================
+# 国会図書館サーチクラス
+
+HTTP_ERROR = 2
+ISBN_NOT_FOUND =1
+ISBN_OK = 0
+
+class ndl_search:
+    def __init__(self, req_interval):
+        self.req_interval = req_interval
+        self.last_cpl_time = 0
+        self.session = requests.Session()
+        self.parms =  { 'format' : 'xml' }
+
+    def lookup_isbn(self, isbn):
+        if self.last_cpl_time != 0:
+            ct = time.perf_counter()
+            dt = ct - self.last_cpl_time
+            wt = self.req_interval - dt
+            if wt > 0: # need to wait for extra time
+                debug_print(2, 'ndl_serach: waiting for %.3f sec to meet request interval=%f sec' % (wt, self.req_interval))
+                time.sleep(wt)
+
+        endpoint = "https://iss.ndl.go.jp/api/opensearch"
+        self.parms['isbn'] = isbn
+
+        result = self.session.get(endpoint, params=self.parms, timeout=80)
+
+        self.last_cpl_time = time.perf_counter()
+            
+        if result.status_code != 200:
+            return (HTTP_ERROR, result.status_code)
+            # Ensure 200 for now
+
+        book_info = xmltodict.parse(result.text)
+        x = book_info['rss']['channel']
+        if not 'item' in x:
+            return (ISBN_NOT_FOUND, '')   # isbn not found
+        if not 'dc:title' in x['item']:
+            return (ISBN_NOT_FOUND, '')
+        return (ISBN_OK, x['item']['dc:title'])
 
 #=============================================================================
 # remove white space
@@ -91,6 +135,9 @@ def lookup_isbn(blrows_in, isbn_uc, csvw):
     st = 0
     rt = 0
     nl = len(blrows_in)
+
+    ns = ndl_search(10)
+
     for row in blrows_in:
         lno += 1
 
@@ -146,19 +193,34 @@ def lookup_isbn(blrows_in, isbn_uc, csvw):
         res = result.json()
         nel = len(res)
 
-        # Json empty, likely invalid ISBN
-        if res[0] == None:
-            rout[2] = 'JSON_ERROR'
+        # Json contents valid, write result and go to the next row
+        if res[0] != None:
+            t = res[0]["onix"]["DescriptiveDetail"]["TitleDetail"]["TitleElement"]["TitleText"]["content"]
+            rout[2] = 'ISBN_OK'
+            rout[3] = nel
+            rout[4] = t
             csvw.writerow(rout)
             continue
 
-        # JSON looks good, now populate title info
-        t = res[0]["onix"]["DescriptiveDetail"]["TitleDetail"]["TitleElement"]["TitleText"]["content"]
-        rout[2] = 'ISBN_OK'
-        rout[3] = nel
-        rout[4] = t
+        # OpenBD lookup failed! Now try NDL.
+        (rc, t) = ns.lookup_isbn(isbn)
+
+        if rc == HTTP_ERROR:
+            rout[2] = 'NDL_HTTP_ERROR'
+            rout[3] = t
+        elif rc == ISBN_NOT_FOUND:
+            rout[2] = 'NDL_ISBN_NOT_FOUND'
+
+        elif rc == ISBN_OK:
+            rout[2] = 'NDL_ISBN_OK'
+            rout[4] = t
+        else:
+            rout[2] = 'PROG_ERROR'
         csvw.writerow(rout)
 
+
+        # JSON looks good, now populate title info
+        
     print('\nlookup_isbn(): DONE')
     return 
 
