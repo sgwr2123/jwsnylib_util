@@ -96,20 +96,24 @@ def lookup_isbn(blrows_in, isbn_uc, csvw):
 
         if lno == 1:
             # write header
-            csvw.writerow(('isbn_lookup', 'isbn_lookup_aux', 'isbn_title', *row))
+            csvw.writerow(('isbn_prechk', 'isbn_prechk_aux', 'isbn_lookup', 'isbn_lookup_aux', 'isbn_title', *row))
             continue
 
+        rout = ['', '', '', '', ''] + row
         # non-title lines, attempt ISBN lookup
         isbn = normalize_isbn(row[0])
 
         if isbn == '': # Empty
-            csvw.writerow(('NO_ISBN', '', '', *row))
+            rout[0] = 'NO_ISBN'
+            csvw.writerow(rout)
             continue
 
         # Non-empty ISBN
         if isbn_uc[isbn] > 1: # duplicated ISBN
-            csvw.writerow(('ISBN_NOT_UNIQUE', isbn_uc[isbn], '', *row))
-            continue
+            rout[0] = 'ISBN_NOT_UNIQUE'
+            rout[1] = isbn_uc[isbn]
+            # do lookup http
+            # continue
 
         if rt == 0:
             rt = time.perf_counter()
@@ -120,7 +124,7 @@ def lookup_isbn(blrows_in, isbn_uc, csvw):
                 print('Processing row %u/%u' % (lno, nl), end='\r')
                 rt = ct
 
-        # ISBN non empty and unique, now attempt web API lookup
+        # ISBN non empty, now attempt web API lookup
         # ensure at least 100ms lookup interval to limit server load
         if st != 0:
             dt = time.perf_counter() - st
@@ -133,7 +137,9 @@ def lookup_isbn(blrows_in, isbn_uc, csvw):
         result = session.get(endpoint, headers=headers, params=params, timeout=10)
         if result.status_code != 200:
             # record error
-            csvw.writerow(('HTTP_ERROR', result.status_code, '', *row))
+            rout[2] = 'HTTP_ERROR'
+            rout[3] = result.status_code
+            csvw.writerow(rout)
             continue
         
         
@@ -142,13 +148,16 @@ def lookup_isbn(blrows_in, isbn_uc, csvw):
 
         # Json empty, likely invalid ISBN
         if res[0] == None:
-            csvw.writerow(('JSON_ERROR', '', '', *row))
+            rout[2] = 'JSON_ERROR'
+            csvw.writerow(rout)
             continue
 
         # JSON looks good, now populate title info
         t = res[0]["onix"]["DescriptiveDetail"]["TitleDetail"]["TitleElement"]["TitleText"]["content"]
-        
-        csvw.writerow(('ISBN_OK', nel, t, *row))
+        rout[2] = 'ISBN_OK'
+        rout[3] = nel
+        rout[4] = t
+        csvw.writerow(rout)
 
     print('\nlookup_isbn(): DONE')
     return 
