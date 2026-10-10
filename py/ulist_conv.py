@@ -25,6 +25,8 @@ def usage():
     print('Usage: %s <OUT Userlist CSV> <IN School Pro userlist CSV>' % sys.argv[0], file=sys.stderr)
 
 
+def generate_uinfo_row(uid):
+    return [uid, uid, uid]  # just duplicate UID for first and last name
 
 #=============================================================================
 # Read the input book list and populate ISBN use count
@@ -34,12 +36,12 @@ def conv_ulist(csvr, csvw):
     ulist_dic = {}
     lno = 0
     plist = []
-
+    title_row = ['patron_id', 'first_name', 'last_name']
     for row in csvr:
         lno += 1
 
         if lno == 1: # skip the first line
-            csvw.writerow(['Patron ID', '']) # only 1 column
+            csvw.writerow(title_row) 
             continue
 
         # 2nd and later, the actual data
@@ -58,10 +60,11 @@ def conv_ulist(csvr, csvw):
             error_exit('ERROR line %u user ID %u/%s defined twice' % (lno, uid, suid))
         ulist_dic[uid] = 1
 
-        csvw.writerow([uid, ''])
+        csvw.writerow(generate_uinfo_row(uid))
         plist.append(uid+99000000)
     for x in plist:
-        csvw.writerow([x, ''])
+        # generate parent account
+        csvw.writerow(generate_uinfo_row(x))
 
 
 #*****************************************************************************
