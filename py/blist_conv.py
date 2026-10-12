@@ -28,7 +28,46 @@ def conv_date(x):
     debug_print(2, 'conv_date |%s| -> |%s|' % (x, r))
     return r
 
+def gen_pdate(py):
+    res = re.match(r'^\d{4}$', py)
+    if res != None:
+        return '%s-01-01' % py
+    else:
+        return ''
 
+def conv_page(p):
+    res = re.match(r'(\d+)', p)
+    if res != None:
+        return res.group(1)
+
+    return ''
+
+def conv_price(p1, p2):
+    if p1 != '':
+        return p1
+    return p2
+
+def add_text(x, delim, fname, val):
+    r = '%s%s%s%s' % (x, delim, fname, val)
+    return (r, ' ')
+
+def gen_notes(shape, trcm, item, attn):
+    x = ''
+    delim = ''
+    if shape != '':
+        (x, delim) = add_text(x, delim, '判型:', shape)
+
+    if trcm != '':
+        (x, delim) = add_text(x, delim, 'TRCMARC:', trcm)
+
+    if item != '':
+        (x, delim) = add_text(x, delim, '件名:', item)
+
+    if attn != '':
+        (x, delim) = add_text(x, delim, '注記:', attn)
+
+    return x
+    
 #=============================================================================
 # convert spro-based book info to libib inport format
 
@@ -39,7 +78,23 @@ def conv_book_info(row):
     ddc = row[17]
     lcc = row[19]
 
-    r = [ isbn, added, spro_id, ddc, lcc]
+    title = row[8]
+    creators = row[14]
+    group = row[12]
+    publisher = row[20]
+
+    pyear = row[21]
+    publish_date = gen_pdate(pyear)
+
+    length = conv_page(row[22])
+    price = conv_price(row[24], row[30])
+    description = row[26]
+
+    notes = gen_notes(row[23], row[25], row[27], row[35])
+
+    r = [ isbn, added, spro_id, ddc, lcc,
+        title, creators, group, publisher, publish_date, 
+        length, price, description, notes]
 
     return r
 
@@ -64,7 +119,9 @@ def generate_ref_info(row, rc, a1, a2, midx):
 def conv_blist(csvr, csvw_main, csvw_main_ref, csvw_tofix):
     
     lno = 0
-    main_title = ['ean_isbn13', 'added', 'call_number', 'ddc', 'lcc' ]
+    main_title = ['ean_isbn13', 'added', 'call_number', 'ddc', 'lcc', 
+                  'title', 'creators', 'group', 'publisher', 'publish_date',  
+                  'length', 'price', 'description', 'notes']
     for row in csvr:
         lno += 1
 
