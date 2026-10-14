@@ -165,12 +165,12 @@ def conv_blist(csvr, csvw_main, csvw_main_ref, csvw_tofix):
         isbn_title = row[4]
         spro_title = row[8]
         (rc, a1, a2, midx) = toshoutil.attempt_tolerant_match(isbn_title, spro_title)
-        if rc < TMR.UNMATCH:
+        if rc < TMR.UNMATCH and isbn_pcheck != 'ISBN_NOT_UNIQUE':
             # success, write the main book list
             csvw_main.writerow(rout)
             csvw_main_ref.writerow(generate_ref_info(row, rc, a1, a2, midx))
         else:
-            # match failed, needs human review
+            # match failed, or ISBN not unique needs human review
             csvw_tofix.writerow(row)
             
 
