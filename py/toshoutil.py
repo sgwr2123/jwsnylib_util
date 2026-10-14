@@ -61,7 +61,7 @@ class ndl_search:
                 dt = ct - self.last_cpl_time
                 wt = self.wait_scale[i] * (self.req_interval - dt)
                 if wt > 0: # need to wait for extra time
-                    debug_print(2, 'ndl_serach: waiting for %.3f sec to meet request interval=%f sec' % (wt, self.req_interval))
+                    debug_print(1, 'ndl_serach: waiting for %.3f sec to meet request interval=%f sec' % (wt, self.req_interval))
                     time.sleep(wt)
 
 
@@ -70,7 +70,7 @@ class ndl_search:
             self.last_cpl_time = time.perf_counter()
 
             if (result.status_code == 429) or (result.status_code == 504):
-                debug_print(2, 'ndl_serach: Got HTTP resp=%u, retring(%u)' % (result.status_code, i))
+                debug_print(1, 'ndl_serach: Got HTTP resp=%u, retring(%u)' % (result.status_code, i))
                 continue # retry
 
             break
@@ -102,11 +102,25 @@ class ndl_search:
 
         (rc, rv) = self.lookup_common(self.tl_parms)
         if rc != NDS.ISBN_OK:
-            print('lookup_title ERROR rc=%u', rc)
-            pprint.pprint(rv)
-            return
-        print('lookup_title got response:')
-        pprint.pprint(rv)
+            #debug_print(2, 'lookup_title ERROR rc=%u' % rc)
+            #pprint.pprint(rv)
+            return (rc, rv)
+
+        x = rv['rss']['channel']
+        if not 'item' in x:
+            debug_print(1, 'ndl.lookup_title: no item element in [rss][channel]')
+            #pprint.pprint(x)
+            return (NDS.ISBN_NOT_FOUND, '')   # isbn not found
+        
+        x = x['item']
+        if isinstance(x, list): # x is a list, return
+            return (NDS.ISBN_OK, x)
+        elif isinstance(x, dict):
+            return (NDS_ISBN_OK, [x]) # create a single-item array
+        else:
+            debug_print(1, 'ndl.lookup_title: neither dict nor list')
+            return (NDS.ISBN_NOT_FOUND, '')
+
 
     
 #=============================================================================
