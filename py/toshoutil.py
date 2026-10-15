@@ -65,7 +65,7 @@ class ndl_search:
                     time.sleep(wt)
 
 
-            result = self.session.get(endpoint, params=parms, timeout=80)
+            result = self.session.get(endpoint, params=parms, timeout=120)
 
             self.last_cpl_time = time.perf_counter()
 
@@ -116,7 +116,7 @@ class ndl_search:
         if isinstance(x, list): # x is a list, return
             return (NDS.ISBN_OK, x)
         elif isinstance(x, dict):
-            return (NDS_ISBN_OK, [x]) # create a single-item array
+            return (NDS.ISBN_OK, [x]) # create a single-item array
         else:
             debug_print(1, 'ndl.lookup_title: neither dict nor list')
             return (NDS.ISBN_NOT_FOUND, '')

@@ -164,8 +164,8 @@ def conv_blist(csvr, csvw_bl, csvw_ref, fdb):
     
     lno = 0
  
-    ns = ndl_search(15)
-    lim = 0
+    ns = ndl_search(17)
+    #lim = 0
 
     for row in csvr:
         lno += 1
@@ -197,9 +197,9 @@ def conv_blist(csvr, csvw_bl, csvw_ref, fdb):
             csvw_bl.writerow(row)
             continue
 
-        lim += 1
-        if lim > 15:
-            return # cut off at 5 attempts
+        #lim += 1
+        #        if lim > 15:
+        #            return # cut off at 5 attempts
         (rc, x) = ns.lookup_title(stitle)
 
         if rc == NDS.HTTP_ERROR:
